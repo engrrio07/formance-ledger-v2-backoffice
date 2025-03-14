@@ -25,12 +25,27 @@ CURRENT_TIME = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
 
 # Helper functions
 def get_server_info():
+    combined_info = {}
+    version_info = None
+    
     try:
-        response = requests.get(f"{BASE_URL}/_info")
-        return response.json()['data'] if response.status_code == 200 else None
+        response1 = requests.get(f"{BASE_URL}/_/info")
+        if response1.status_code == 200:
+            version_info = response1.json().get("version")
     except Exception as e:
-        st.error(f"Error fetching server info: {str(e)}")
-        return None
+        st.error(f"Error fetching /_/info: {str(e)}")
+    
+    try:
+        response2 = requests.get(f"{BASE_URL}/_info")
+        if response2.status_code == 200:
+            combined_info.update(response2.json().get('data', {}))
+    except Exception as e:
+        st.error(f"Error fetching /_info: {str(e)}")
+    
+    if version_info:
+        combined_info["version"] = version_info
+    
+    return combined_info if combined_info else None
 
 def list_ledgers():
     try:

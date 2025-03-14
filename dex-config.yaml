@@ -1,0 +1,39 @@
+issuer: http://localhost:5556
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556  # 👈 This tells Dex to listen on port 5556
+
+staticClients:
+  - id: ledger
+    redirectURIs:
+      - "http://localhost:3068/auth/authorize/callback"
+    name: "Ledger"
+    secret: ledger-secret
+  - id: control
+    name: "Control"
+    secret: control-secret
+    redirectURIs:
+      - "http://localhost:3000/auth/authorize/callback"
+    # trustedPeers:
+    #   - "formance"
+    grants:
+      - authorization_code
+      - refresh_token
+      - password
+    scopes:
+      - openid
+      - profile
+      - email
+
+enablePasswordDB: true
+# Allow password grants with local users
+oauth2:
+  passwordConnector: local
+
+staticPasswords:
+  - email: "admin@example.com"
+    hash: "$2y$10$4XL9lFJCB67GBPLp3/e8PuelyUVYOHO8CFo4cQ/s5gQt9DqHZOH26" # password: admin
+    username: "admin"
+    userID: "1234567890"

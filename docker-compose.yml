@@ -2,8 +2,18 @@ volumes:
   postgres_data:
 
 services:
+  # dex:
+  #   image: ghcr.io/dexidp/dex:v2.35.3
+  #   container_name: dex
+  #   command: ["dex", "serve", "/etc/dex/config.yaml"]
+  #   volumes:
+  #     - ./dex-config.yaml:/etc/dex/config.yaml
+  #   ports:
+  #     - "5556:5556" # Dex HTTP API
+  #     - "5557:5557" # Dex gRPC API
+
   ledger:
-    image: ghcr.io/formancehq/ledger:v2.2.12
+    image: ghcr.io/formancehq/ledger:v2.2.13
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://127.0.0.1:3068/_healthcheck" ]
       interval: 10s
@@ -25,9 +35,11 @@ services:
       AUTO_UPGRADE: "true"
       BULK_PARALLEL: "10"
       AUTH_ENABLED: "false"
+      AUTH_ISSUER: "http://dex:5556"
       JSON_FORMATTING_LOGGER: "true"
     depends_on:
       - postgres
+      # - dex
 
   postgres:
     image: postgres:13
