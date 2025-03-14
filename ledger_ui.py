@@ -305,12 +305,16 @@ elif view == "Transactions":
     with col1:
         # Create a dropdown to filter by ledger
         ledgers = list_ledgers()
-        ledger_names = [l['name'] for l in ledgers]
-        ledger_names.insert(0, "All Ledgers")
-        selected_ledger = st.selectbox("Ledger", ledger_names, key="transaction_ledger_filter")
-        filter_ledger = None if selected_ledger == "All Ledgers" else selected_ledger
-        st.session_state['selected_ledger'] = filter_ledger
-    
+        if ledgers:
+            ledger_names = [l['name'] for l in ledgers]
+            default_index = 0  # Pre-select the first ledger
+            selected_ledger = st.selectbox("Select a ledger:", ledger_names, index=default_index, key="transaction_ledger_filter")
+            filter_ledger = selected_ledger
+            st.session_state['selected_ledger'] = filter_ledger
+        else:
+            st.warning("No ledgers available.")
+
+            
     with col2:
         source_filter = st.text_input("Source Account", value=st.session_state['source_filter'])
     
@@ -323,6 +327,7 @@ elif view == "Transactions":
         st.session_state['source_filter'] = source_filter
         st.session_state['destination_filter'] = destination_filter
         st.rerun()
+    
     
     # Show transaction detail or list
     if st.session_state['view_tx_details'] and st.session_state['selected_ledger'] and st.session_state['selected_tx_id']:
@@ -411,90 +416,91 @@ elif view == "Accounts":
     
     # Filter by ledger
     ledgers = list_ledgers()
-    ledger_names = [l['name'] for l in ledgers]
-    ledger_names.insert(0, "All Ledgers")
-    selected_ledger = st.selectbox("Ledger", ledger_names, key="temp_filter", on_change=update_filter)
-    st.session_state['selected_ledger'] = selected_ledger
+    if ledgers:
+        ledger_names = [l['name'] for l in ledgers]
+        default_index = 0  # Pre-select the first ledger
+        selected_ledger = st.selectbox("Select a ledger:", ledger_names, index=default_index, key="temp_filter", on_change=update_filter)
+        st.session_state['selected_ledger'] = selected_ledger
+    else:
+        st.warning("No ledgers available.")
 
-    if selected_ledger == "All Ledgers":
-        st.session_state['selected_ledger'] = ""
 
     if st.session_state['view_account_details'] and st.session_state['selected_account']:
         # Account Detail View
         if st.session_state['selected_ledger']: #Check if there is selected ledger
             account = get_account(st.session_state['selected_ledger'], st.session_state['selected_account'])
-        if account:
-            # Breadcrumb navigation
-            st.markdown(f"**All ledgers > {st.session_state['selected_ledger']} > Accounts > {st.session_state['selected_account']}**")
+            if account:
+                # Breadcrumb navigation
+                st.markdown(f"**All ledgers > {st.session_state['selected_ledger']} > Accounts > {st.session_state['selected_account']}**")
 
-            # Account header
-            st.subheader(f"{account.get('address', '')}")
+                # Account header
+                st.subheader(f"{account.get('address', '')}")
 
-            # Back button
-            if st.button("Back to Accounts"):
-                st.session_state['view_account_details'] = False
-                st.rerun()
+                # Back button
+                if st.button("Back to Accounts"):
+                    st.session_state['view_account_details'] = False
+                    st.rerun()
 
-            # Activity visualization
-            st.write("### Transactions volume")
+                # Activity visualization
+                st.write("### Transactions volume")
 
-            # Helper function to process transaction data
-            def get_transaction_volume_data(ledger, account):
-                txs = get_transactions(ledger, source=account)
-                volume_data = []
+                # Helper function to process transaction data
+                def get_transaction_volume_data(ledger, account):
+                    txs = get_transactions(ledger, source=account)
+                    volume_data = []
 
-                for tx in txs:
-                    # Check if account is involved in any postings
-                    involved = any(
-                        posting['source'] == account or posting['destination'] == account
-                        for posting in tx.get('postings', [])
-                    )
-                    
-                    if involved:
-                        date = pd.to_datetime(tx['timestamp']).strftime('%b %d, %Y')
-                        for posting in tx['postings']:
-                            if posting['source'] == account or posting['destination'] == account:
-                                volume_data.append({
-                                    'date': date,
-                                    'asset': posting['asset'],
-                                    'amount': abs(float(posting['amount']))
-                                })
-
-                return pd.DataFrame(volume_data)
-
-            # Get and plot data
-            if st.session_state['selected_ledger'] and st.session_state['selected_account']:
-                activity_df = get_transaction_volume_data(
-                    st.session_state['selected_ledger'],
-                    st.session_state['selected_account']
-                )
-                
-                if not activity_df.empty:
-                    # Group by date and asset
-                    grouped_df = activity_df.groupby(['date', 'asset'])['amount'].sum().reset_index()
-                    
-                    # Create stacked bar chart
-                    fig = px.bar(
-                        grouped_df,
-                        x='date',
-                        y='amount',
-                        color='asset',
-                        title=f"Transaction Volume for {st.session_state['selected_account']}",
-                        labels={'date': 'Date', 'amount': 'Volume', 'asset': 'Asset'},
-                        barmode='stack'
-                    )
-                    fig.update_layout(
-                        xaxis_title="Date",
-                        yaxis_title="Total Volume",
-                        hovermode='x unified',
-                        xaxis=dict(
-                            tickangle=45,
-                            tickformat='%b %d, %Y'
+                    for tx in txs:
+                        # Check if account is involved in any postings
+                        involved = any(
+                            posting['source'] == account or posting['destination'] == account
+                            for posting in tx.get('postings', [])
                         )
+                        
+                        if involved:
+                            date = pd.to_datetime(tx['timestamp']).strftime('%b %d, %Y')
+                            for posting in tx['postings']:
+                                if posting['source'] == account or posting['destination'] == account:
+                                    volume_data.append({
+                                        'date': date,
+                                        'asset': posting['asset'],
+                                        'amount': abs(float(posting['amount']))
+                                    })
+
+                    return pd.DataFrame(volume_data)
+
+                # Get and plot data
+                if st.session_state['selected_ledger'] and st.session_state['selected_account']:
+                    activity_df = get_transaction_volume_data(
+                        st.session_state['selected_ledger'],
+                        st.session_state['selected_account']
                     )
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("No transaction volume data available")
+                    
+                    if not activity_df.empty:
+                        # Group by date and asset
+                        grouped_df = activity_df.groupby(['date', 'asset'])['amount'].sum().reset_index()
+                        
+                        # Create stacked bar chart
+                        fig = px.bar(
+                            grouped_df,
+                            x='date',
+                            y='amount',
+                            color='asset',
+                            title=f"Transaction Volume for {st.session_state['selected_account']}",
+                            labels={'date': 'Date', 'amount': 'Volume', 'asset': 'Asset'},
+                            barmode='stack'
+                        )
+                        fig.update_layout(
+                            xaxis_title="Date",
+                            yaxis_title="Total Volume",
+                            hovermode='x unified',
+                            xaxis=dict(
+                                tickangle=45,
+                                tickformat='%b %d, %Y'
+                            )
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No transaction volume data available")
             else:
                 st.warning("Select an account to view transaction volume")
 
