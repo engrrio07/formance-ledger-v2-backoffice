@@ -27,6 +27,7 @@ CURRENT_TIME = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
 def get_server_info():
     combined_info = {}
     version_info = None
+    health_status = None
     
     try:
         response1 = requests.get(f"{BASE_URL}/_/info")
@@ -42,8 +43,17 @@ def get_server_info():
     except Exception as e:
         st.error(f"Error fetching /_info: {str(e)}")
     
+    try:
+        response3 = requests.get(f"{BASE_URL}/_healthcheck")
+        if response3.status_code == 200:
+            health_status = response3.json().get("storage-driver-up-to-date")
+    except Exception as e:
+        st.error(f"Error fetching /_healthcheck: {str(e)}")
+    
     if version_info:
         combined_info["version"] = version_info
+    if health_status:
+        combined_info["storage-driver-up-to-date"] = health_status
     
     return combined_info if combined_info else None
 
@@ -197,6 +207,7 @@ with st.sidebar:
         st.write(f"**Version**: {server_info.get('version', 'N/A')}")
         storage_info = server_info.get('config', {}).get('storage', {})
         st.write(f"**Storage Driver**: {storage_info.get('driver', 'N/A')}")
+        st.write(f"**Storage Driver Status**: {server_info.get('storage-driver-up-to-date', 'N/A')}")
     
     st.markdown("---")
 
@@ -632,8 +643,6 @@ elif view == "Assets":
     selected_asset = st.selectbox("Select an asset", list(all_assets), key="asset_selector")
     
     if selected_asset:
-        # Calculate total supply
-        total_supply = 0
         holding_accounts = []
         for ledger in list_ledgers():
             accounts = get_accounts(ledger['name'])
@@ -641,16 +650,12 @@ elif view == "Assets":
                 acc_details = get_account(ledger['name'], account['address'])
                 if acc_details:
                     balance = acc_details.get('balances', {}).get(selected_asset, 0)
-                    print(balance)
-                    total_supply += float(balance)
                     if balance != 0:  # Include all non-zero balances
                         holding_accounts.append({
                             "Account": account['address'],
                             "Ledger": ledger['name'],
                             "Balance": balance
                         })
-        
-        st.metric("Total Supply", f"{total_supply:,}")
         
         # Show accounts holding this asset
         st.write("### Accounts Holding This Asset")
